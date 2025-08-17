@@ -17,10 +17,10 @@ class SalesAgentApp {
             // Use environment variable or fallback to localhost for development
             apiUrl: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
                 ? 'http://localhost:8000' 
-                : 'https://your-domain.com', // Replace with your actual domain
+                : 'http://103.57.225.153', // Backend server IP
             wsUrl: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
                 ? 'ws://localhost:8000'
-                : 'wss://your-domain.com' // Replace with your actual domain
+                : 'ws://103.57.225.153' // Backend server IP for WebSocket
         };
         
         console.log('Environment detected:', window.location.hostname);
