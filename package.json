@@ -1,0 +1,14 @@
+{
+  "name": "lisa-sales-agent-frontend",
+  "version": "1.0.0",
+  "description": "Lisa AI Sales Agent Frontend",
+  "main": "index.html",
+  "scripts": {
+    "dev": "python3 server.py",
+    "build": "echo 'Static files ready'",
+    "start": "python3 server.py"
+  },
+  "keywords": ["ai", "sales", "agent", "vosk", "openai"],
+  "author": "Your Name",
+  "license": "MIT"
+}
