@@ -17,10 +17,10 @@ class SalesAgentApp {
             // Use environment variable or fallback to localhost for development
             apiUrl: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
                 ? 'http://localhost:8000' 
-                : 'https://lisa-sales-agent-backend.herokuapp.com', // Replace with YOUR actual Heroku app name
+                : 'https://your-domain.com', // Replace with your actual domain
             wsUrl: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
                 ? 'ws://localhost:8000'
-                : 'wss://lisa-sales-agent-backend.herokuapp.com' // Replace with YOUR actual Heroku app name
+                : 'wss://your-domain.com' // Replace with your actual domain
         };
         
         console.log('Environment detected:', window.location.hostname);

@@ -201,19 +201,6 @@
         </div>
     </div>
 
-    <script>
-        // Force complete cache bypass
-        const timestamp = Date.now();
-        const randomId = Math.random().toString(36).substring(7);
-        const script = document.createElement('script');
-        script.src = `app.js?v=${timestamp}&r=${randomId}&nocache=true`;
-        script.onload = function() {
-            console.log('Fresh app.js loaded');
-        };
-        script.onerror = function() {
-            console.error('Failed to load app.js');
-        };
-        document.head.appendChild(script);
-    </script>
+    <script src="app.js"></script>
 </body>
 </html>
