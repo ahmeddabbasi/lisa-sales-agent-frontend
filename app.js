@@ -17,10 +17,10 @@ class SalesAgentApp {
             // Use environment variable or fallback to localhost for development
             apiUrl: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
                 ? 'http://localhost:8000' 
-                : 'http://103.57.225.153', // Backend server IP
+                : 'https://cruel-deer-kiss.loca.lt', // Localtunnel URL for backend
             wsUrl: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
                 ? 'ws://localhost:8000'
-                : 'ws://103.57.225.153' // Backend server IP for WebSocket
+                : 'wss://cruel-deer-kiss.loca.lt' // Localtunnel URL for WebSocket
         };
         
         console.log('Environment detected:', window.location.hostname);
