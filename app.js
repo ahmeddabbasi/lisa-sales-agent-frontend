@@ -33,6 +33,14 @@ class SalesAgentApp {
         console.log('Environment detected:', window.location.hostname);
         console.log('Using API URL:', this.config.apiUrl);
         console.log('Using WebSocket URL:', this.config.wsUrl);
+        
+        // Add cleanup handler for page unload
+        window.addEventListener('beforeunload', () => {
+            this.intentionalDisconnect = true;
+            if (this.socket) {
+                this.socket.close();
+            }
+        });
     }
 
     async init() {
@@ -139,16 +147,28 @@ class SalesAgentApp {
                 console.log('WebSocket connected');
                 this.updateConnectionStatus(true);
                 this.addMessage('System', 'Connected! Click the microphone to start speaking.', 'system');
+                this.reconnectAttempts = 0; // Reset reconnect attempts on successful connection
             };
             
             this.socket.onmessage = (event) => {
                 this.handleWebSocketMessage(event);
             };
             
-            this.socket.onclose = () => {
-                console.log('WebSocket disconnected');
+            this.socket.onclose = (event) => {
+                console.log('WebSocket disconnected, code:', event.code, 'reason:', event.reason);
                 this.updateConnectionStatus(false);
-                this.addMessage('System', 'Connection lost. Please refresh the page.', 'system');
+                
+                // Auto-reconnect logic
+                if (!this.intentionalDisconnect && this.reconnectAttempts < 5) {
+                    this.reconnectAttempts = (this.reconnectAttempts || 0) + 1;
+                    console.log(`Attempting to reconnect... (${this.reconnectAttempts}/5)`);
+                    
+                    setTimeout(() => {
+                        this.connectWebSocket();
+                    }, 2000 * this.reconnectAttempts); // Exponential backoff
+                } else {
+                    this.addMessage('System', 'Connection lost. Please refresh the page.', 'system');
+                }
             };
             
             this.socket.onerror = (error) => {
@@ -204,6 +224,27 @@ class SalesAgentApp {
     async startRecording() {
         try {
             console.log('[DEBUG] Starting recording...');
+            
+            // Ensure WebSocket is connected before starting recording
+            if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+                console.log('[DEBUG] WebSocket not connected, attempting to reconnect...');
+                await this.connectWebSocket();
+                
+                // Wait for connection to establish
+                await new Promise((resolve, reject) => {
+                    const checkConnection = () => {
+                        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+                            resolve();
+                        } else if (this.socket && this.socket.readyState === WebSocket.CLOSED) {
+                            reject(new Error('WebSocket connection failed'));
+                        } else {
+                            setTimeout(checkConnection, 100);
+                        }
+                    };
+                    setTimeout(checkConnection, 100);
+                    setTimeout(() => reject(new Error('Connection timeout')), 5000);
+                });
+            }
             
             if (this.useAudioWorklet && window.AudioWorklet) {
                 await this.startAudioWorkletRecording();
