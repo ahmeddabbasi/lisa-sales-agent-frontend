@@ -1,18 +1,25 @@
 class SalesAgentApp {
     constructor() {
+        console.log('SalesAgentApp constructor called');
         this.socket = null;
+        this.mediaRecorder = null;
         this.isRecording = false;
         this.isMuted = false;
-        this.mediaRecorder = null;
-        this.audioChunks = [];
         this.isLoggedIn = false;
-        this.callStartTime = null;
-        this.callDurationInterval = null;
+        this.token = null;
         this.sessionId = null;
         this.currentUser = null;
-        this.token = null;
+        this.audioChunks = [];
+        this.callStartTime = null;
+        this.callTimer = null;
         
-        // API Configuration - automatically detects environment
+        // AudioWorklet properties for low-latency audio
+        this.audioContext = null;
+        this.audioWorkletNode = null;
+        this.stream = null;
+        this.useAudioWorklet = true; // Flag to enable/disable AudioWorklet
+        
+        // API Configuration - automatically detects environmentmc
         this.config = {
             // Use environment variable or fallback to localhost for development
             apiUrl: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
@@ -196,11 +203,90 @@ class SalesAgentApp {
 
     async startRecording() {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            console.log('[DEBUG] Starting recording...');
+            
+            if (this.useAudioWorklet && window.AudioWorklet) {
+                await this.startAudioWorkletRecording();
+            } else {
+                await this.startMediaRecorderRecording();
+            }
+            
+        } catch (error) {
+            console.error('Recording start error:', error);
+            this.showError('Failed to start recording: ' + error.message);
+        }
+    }
+
+    async startAudioWorkletRecording() {
+        try {
+            console.log('[DEBUG] Starting AudioWorklet recording for low latency...');
+            
+            // Get microphone stream with optimal settings for Vosk
+            this.stream = await navigator.mediaDevices.getUserMedia({ 
+                audio: {
+                    sampleRate: 16000,  // Vosk optimal sample rate
+                    channelCount: 1,    // Mono audio
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                } 
+            });
+            
+            // Create AudioContext with 16kHz sample rate
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                sampleRate: 16000
+            });
+            
+            // Resume context if suspended
+            if (this.audioContext.state === 'suspended') {
+                await this.audioContext.resume();
+            }
+            
+            // Load AudioWorklet processor
+            await this.audioContext.audioWorklet.addModule('/audio-processor-pcm32.js');
+            
+            // Create AudioWorklet node
+            this.audioWorkletNode = new AudioWorkletNode(
+                this.audioContext, 
+                'pcm32-audio-processor'
+            );
+            
+            // Handle audio data from worklet
+            this.audioWorkletNode.port.onmessage = (event) => {
+                if (event.data.type === 'audioData') {
+                    this.sendAudioWorkletData(event.data);
+                }
+            };
+            
+            // Connect audio pipeline
+            const source = this.audioContext.createMediaStreamSource(this.stream);
+            source.connect(this.audioWorkletNode);
+            
+            this.isRecording = true;
+            this.updateMicButton();
+            
+            console.log('[DEBUG] AudioWorklet recording started successfully');
+            
+        } catch (error) {
+            console.error('AudioWorklet recording error:', error);
+            // Fallback to MediaRecorder
+            console.log('[DEBUG] Falling back to MediaRecorder...');
+            this.useAudioWorklet = false;
+            await this.startMediaRecorderRecording();
+        }
+    }
+
+    async startMediaRecorderRecording() {
+        try {
+            console.log('[DEBUG] Starting MediaRecorder recording (fallback)...');
+            
+            if (!this.stream) {
+                this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            }
             
             // Configure MediaRecorder for WebM format explicitly
             const options = { mimeType: 'audio/webm' };
-            this.mediaRecorder = new MediaRecorder(stream, options);
+            this.mediaRecorder = new MediaRecorder(this.stream, options);
             this.audioChunks = [];
 
             this.mediaRecorder.ondataavailable = (event) => {
@@ -217,21 +303,75 @@ class SalesAgentApp {
             this.isRecording = true;
             this.updateMicButton();
             
+            console.log('[DEBUG] MediaRecorder recording started');
+            
         } catch (error) {
-            console.error('Error accessing microphone:', error);
-            this.showError('Microphone access denied. Please allow microphone access and try again.');
+            console.error('MediaRecorder error:', error);
+            throw error;
+        }
+    }
+
+    sendAudioWorkletData(audioData) {
+        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+            try {
+                // Send metadata first
+                this.socket.send(JSON.stringify({
+                    type: 'audio_pcm16',
+                    samples: audioData.samples,
+                    sampleRate: audioData.sampleRate,
+                    timestamp: audioData.timestamp,
+                    format: 'pcm16'
+                }));
+                
+                // Send binary PCM data
+                this.socket.send(audioData.data);
+                
+                console.log('[DEBUG] Sent PCM16 audio data:', audioData.samples, 'samples');
+                
+            } catch (error) {
+                console.error('[DEBUG] Error sending AudioWorklet data:', error);
+            }
+        } else {
+            console.log('[DEBUG] WebSocket not open, cannot send AudioWorklet data');
         }
     }
 
     stopRecording() {
-        if (this.mediaRecorder && this.isRecording) {
+        if (!this.isRecording) return;
+        
+        if (this.audioWorkletNode && this.useAudioWorklet) {
+            // Stop AudioWorklet recording
+            if (this.audioWorkletNode) {
+                this.audioWorkletNode.disconnect();
+                this.audioWorkletNode = null;
+            }
+            
+            if (this.audioContext && this.audioContext.state !== 'closed') {
+                this.audioContext.close();
+                this.audioContext = null;
+            }
+            
+            if (this.stream) {
+                this.stream.getTracks().forEach(track => track.stop());
+                this.stream = null;
+            }
+            
+            console.log('[DEBUG] AudioWorklet recording stopped');
+            
+        } else if (this.mediaRecorder) {
+            // Stop MediaRecorder recording
             this.mediaRecorder.stop();
-            this.isRecording = false;
-            this.updateMicButton();
             
             // Stop all tracks
-            this.mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            if (this.mediaRecorder.stream) {
+                this.mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            }
+            
+            console.log('[DEBUG] MediaRecorder recording stopped');
         }
+        
+        this.isRecording = false;
+        this.updateMicButton();
     }
 
     async processAudioChunks() {
