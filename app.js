@@ -17,10 +17,10 @@ class SalesAgentApp {
             // Use environment variable or fallback to localhost for development
             apiUrl: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
                 ? 'http://localhost:8000' 
-                : 'https://ebfd7ff343cd.ngrok-free.app', // Ngrok URL for backend
+                : 'https://e161b9c2e914.ngrok-free.app', // Ngrok URL for backend
             wsUrl: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
                 ? 'ws://localhost:8000'
-                : 'wss://ebfd7ff343cd.ngrok-free.app' // Ngrok URL for WebSocket
+                : 'wss://e161b9c2e914.ngrok-free.app' // Ngrok URL for WebSocket
         };
         
         console.log('Environment detected:', window.location.hostname);
