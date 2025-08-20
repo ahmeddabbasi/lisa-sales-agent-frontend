@@ -19,15 +19,15 @@ class SalesAgentApp {
         this.stream = null;
         this.useAudioWorklet = true; // Flag to enable/disable AudioWorklet
         
-        // API Configuration - automatically detects environmentmc
+        // API Configuration - automatically detects environment
         this.config = {
             // Use environment variable or fallback to localhost for development
             apiUrl: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
                 ? 'http://localhost:8000' 
-                : 'https://e161b9c2e914.ngrok-free.app', // Ngrok URL for backend
+                : 'https://9aa2ae98b6e9.ngrok-free.app', // Updated Ngrok URL for backend
             wsUrl: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
                 ? 'ws://localhost:8000'
-                : 'wss://e161b9c2e914.ngrok-free.app' // Ngrok URL for WebSocket
+                : 'wss://9aa2ae98b6e9.ngrok-free.app' // Updated Ngrok URL for WebSocket
         };
         
         console.log('Environment detected:', window.location.hostname);
